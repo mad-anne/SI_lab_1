@@ -16,7 +16,7 @@ public class GeneticAlgorithm
     private int maxNumberOfGenerations = 0;
     private Schedule schedule;
     private Greedy greedy;
-    private BaseIntIndividual[] population;
+    private ArrayList<BaseIntIndividual> population;
     private int populationSize;
     private int contestSize;
     private double crossoverProbability;
@@ -26,7 +26,7 @@ public class GeneticAlgorithm
     {
         MSRCPSPIO reader = new MSRCPSPIO();
         Schedule s = reader.readDefinition("src\\resources\\def_small\\10_3_5_3.def");
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 1, 100, 5, 0.75, 0.1);
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, 100, 100, 5, 0.75, 0.05);
         ga.start();
     }
 
@@ -46,14 +46,14 @@ public class GeneticAlgorithm
     {
         population = generateRandomPopulation();
 
+        System.out.println(getTheBestIndividual(population).getDuration());
         int currentGeneration = 1;
         while (currentGeneration <= maxNumberOfGenerations)
         {
-            ArrayList<BaseIntIndividual> selectedIndividuals = selectIndividuals();
-            System.out.println(getTheBestIndividual(selectedIndividuals).getDuration());
+            ArrayList<BaseIntIndividual> selectedIndividuals = selectIndividuals(population);
             ArrayList<BaseIntIndividual> crossedIndividuals = performCrossover(selectedIndividuals);
-            System.out.println(getTheBestIndividual(crossedIndividuals).getDuration());
-            performMutation();
+            population = performMutation(crossedIndividuals);
+            System.out.println(getTheBestIndividual(population).getDuration());
             ++currentGeneration;
         }
 
@@ -65,12 +65,12 @@ public class GeneticAlgorithm
         return individuals.stream().max(Comparator.naturalOrder()).get();
     }
 
-    private BaseIntIndividual[] generateRandomPopulation()
+    private ArrayList<BaseIntIndividual> generateRandomPopulation()
     {
-        BaseIntIndividual[] population = new BaseIntIndividual[populationSize];
+        ArrayList<BaseIntIndividual> population = new ArrayList<>();
 
-        for (int i = 0; i < population.length; ++i)
-            population[i] = generateRandomIndividual();
+        for (int i = 0; i < populationSize; ++i)
+            population.add(generateRandomIndividual());
 
         return population;
     }
@@ -100,7 +100,7 @@ public class GeneticAlgorithm
         return individual;
     }
 
-    private ArrayList<BaseIntIndividual> selectIndividuals()
+    private ArrayList<BaseIntIndividual> selectIndividuals(ArrayList<BaseIntIndividual> population)
     {
         ArrayList<BaseIntIndividual> individuals = new ArrayList<>();
         Random r = new Random();
@@ -114,15 +114,15 @@ public class GeneticAlgorithm
                 drawnIndexes.add(r.nextInt(populationSize));
 
             ArrayList<Integer> drawnIndexesList = new ArrayList<>(drawnIndexes);
-            BaseIntIndividual bestIndividual = population[drawnIndexesList.get(0)];
-            int bestDurationTime = population[drawnIndexesList.get(0)].getDuration();
+            BaseIntIndividual bestIndividual = population.get(drawnIndexesList.get(0));
+            int bestDurationTime = population.get(drawnIndexesList.get(0)).getDuration();
 
             for (int index = 1; index < drawnIndexes.size(); ++index)
             {
-                if (population[drawnIndexesList.get(index)].getDuration() < bestDurationTime)
+                if (population.get(drawnIndexesList.get(index)).getDuration() < bestDurationTime)
                 {
-                    bestIndividual = population[drawnIndexesList.get(index)];
-                    bestDurationTime = population[drawnIndexesList.get(index)].getDuration();
+                    bestIndividual = population.get(drawnIndexesList.get(index));
+                    bestDurationTime = population.get(drawnIndexesList.get(index)).getDuration();
                 }
             }
 
@@ -177,9 +177,36 @@ public class GeneticAlgorithm
 
         return individual;
     }
-    
-    private void performMutation()
-    {
 
+    private ArrayList<BaseIntIndividual> performMutation(ArrayList<BaseIntIndividual> crossedIndividuals)
+    {
+        Random r = new Random();
+
+        for(BaseIntIndividual individual : crossedIndividuals)
+        {
+            int[] genes = individual.getGenes();
+
+            for (int index = 0; index < genes.length; ++index)
+            {
+                if (r.nextDouble() <= mutationProbability)
+                {
+                    genes[index] = mutate(individual, index);
+                    individual.setGenes(genes);
+                }
+            }
+
+            individual.setDurationAndCost();
+        }
+        return crossedIndividuals;
+    }
+
+    private int mutate(BaseIntIndividual individual, int index)
+    {
+        Schedule s = individual.getSchedule();
+        Task t = s.getTasks()[index];
+        List<Resource> resources = s.getCapableResources(t);
+        int afterMutationValue = (new Random()).nextInt(resources.size());
+        s.assign(t, resources.get(afterMutationValue));
+        return resources.get(afterMutationValue).getId();
     }
 }
