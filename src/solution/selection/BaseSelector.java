@@ -14,7 +14,7 @@ abstract public class BaseSelector
     double selectionProbability;
     Random random;
 
-    public BaseSelector(double selectionProbability)
+    BaseSelector(double selectionProbability)
     {
         this.population = null;
         this.populationSize = 0;
@@ -22,7 +22,7 @@ abstract public class BaseSelector
         this.random = new Random();
     }
 
-    public BaseSelector(BaseIndividual[] population, double selectionProbability)
+    BaseSelector(BaseIndividual[] population, double selectionProbability)
     {
         this.population = population;
         this.populationSize = population.length;

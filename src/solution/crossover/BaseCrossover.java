@@ -11,7 +11,7 @@ abstract public class BaseCrossover
 {
     Random random;
 
-    public BaseCrossover()
+    BaseCrossover()
     {
         random = new Random();
     }

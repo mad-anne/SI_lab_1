@@ -1,6 +1,5 @@
 package solution.mutation;
 
-import msrcpsp.scheduling.BaseIndividual;
 import msrcpsp.scheduling.BaseIntIndividual;
 
 import java.util.Random;
@@ -10,10 +9,10 @@ import java.util.Random;
  */
 abstract public class BaseMutator
 {
-    protected double mutationProbability;
-    protected Random random;
+    double mutationProbability;
+    Random random;
 
-    public BaseMutator(double mutationProbability)
+    BaseMutator(double mutationProbability)
     {
         this.mutationProbability = mutationProbability;
         this.random = new Random();

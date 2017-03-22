@@ -23,16 +23,20 @@ public class GeneticAlgorithm
     private Greedy greedy;
     private BaseIntIndividual[] population;
     private int populationSize;
-    BaseSelector selector;
-    BaseCrossover crossover;
-    BaseMutator mutator;
+    private BaseSelector selector;
+    private BaseCrossover crossover;
+    private BaseMutator mutator;
 
     public static void main(String[] args)
     {
         MSRCPSPIO reader = new MSRCPSPIO();
         Schedule s = reader.readDefinition("src\\resources\\def_small\\15_9_12_9.def");
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 10, new TournamentSelector(0.5, 5),
-                new SinglePointCrossover(), new RandomMutator(0.01));
+
+        BaseSelector selector = new TournamentSelector(0.5, 5);
+        BaseCrossover crossover = new SinglePointCrossover();
+        BaseMutator mutator = new RandomMutator(0.01);
+
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 8, selector, crossover, mutator);
         ga.start();
     }
 
@@ -57,8 +61,8 @@ public class GeneticAlgorithm
         {
             selector.setPopulation(population);
             population = performCrossover();
-            performMutation();
-            evalute();
+            population = performMutation();
+            evaluate();
             printResult(currentGeneration);
         }
 
@@ -67,14 +71,15 @@ public class GeneticAlgorithm
 
     private void printResult(int number)
     {
-        System.out.println(number + ". " + getTheBestIndividual().getDuration());
+        BaseIntIndividual bestIndividual = getTheBestIndividual();
+        System.out.println(number + ". " + (bestIndividual == null ? "none" : bestIndividual.getDuration()));
         System.out.print("Individuals: ");
         for (BaseIntIndividual individual : population)
             System.out.print(individual.getDuration() + " ");
         System.out.println("\n");
     }
 
-    private void evalute()
+    private void evaluate()
     {
         for (BaseIndividual individual : population)
         {
@@ -88,7 +93,8 @@ public class GeneticAlgorithm
 
     private BaseIntIndividual getTheBestIndividual()
     {
-        return Arrays.asList(population).stream().min(Comparator.naturalOrder()).get();
+        Optional<BaseIntIndividual> bestIndividual = Arrays.stream(population).min(Comparator.naturalOrder());
+        return bestIndividual.isPresent() ? bestIndividual.get() : null;
     }
 
     private void generateRandomPopulation()

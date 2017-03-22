@@ -9,18 +9,11 @@ import java.util.*;
  */
 public class TournamentSelector extends BaseSelector
 {
-    int tournamentSize;
+    private int tournamentSize;
 
     public TournamentSelector(double selectionProbability, int tournamentSize)
     {
         super(selectionProbability);
-        this.tournamentSize = tournamentSize;
-    }
-
-
-    public TournamentSelector(BaseIndividual[] population, double selectionProbability, int tournamentSize)
-    {
-        super(population, selectionProbability);
         this.tournamentSize = tournamentSize;
     }
 
