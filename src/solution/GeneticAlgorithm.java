@@ -11,6 +11,9 @@ import solution.mutation.RandomMutator;
 import solution.selection.BaseSelector;
 import solution.selection.TournamentSelector;
 
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 /**
@@ -18,6 +21,12 @@ import java.util.*;
  */
 public class GeneticAlgorithm
 {
+    private static String path = "src\\resources\\def_small\\15_9_12_9.def";
+
+    private static double mutationProbability = 0.01;
+    private static double selectionProbability = 0.05;
+    private static int tournamentSize = 5;
+
     private int maxNumberOfGenerations = 0;
     private Schedule schedule;
     private Greedy greedy;
@@ -29,14 +38,16 @@ public class GeneticAlgorithm
     private BaseMutator mutator;
     private Random random;
 
+    private ArrayList<String> results = new ArrayList<>();
+
     public static void main(String[] args)
     {
         MSRCPSPIO reader = new MSRCPSPIO();
-        Schedule s = reader.readDefinition("src\\resources\\def_small\\15_9_12_9.def");
+        Schedule s = reader.readDefinition(path);
 
-        BaseSelector selector = new TournamentSelector(0.5, 5);
+        BaseSelector selector = new TournamentSelector(selectionProbability, tournamentSize);
         BaseCrossover crossover = new SinglePointCrossover();
-        BaseMutator mutator = new RandomMutator(0.01);
+        BaseMutator mutator = new RandomMutator(mutationProbability);
 
         GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 8, 0.75, selector, crossover, mutator);
         ga.start();
@@ -68,20 +79,47 @@ public class GeneticAlgorithm
             population = performCrossover();
             population = performMutation();
             evaluate();
-            printResult(currentGeneration);
+            results.add(getCurrentState(currentGeneration));
         }
 
+        putResultToFile();
         return true;
     }
 
-    private void printResult(int number)
+    private String getCurrentState(int generation)
     {
-        BaseIntIndividual bestIndividual = getTheBestIndividual();
-        System.out.println(number + ". " + (bestIndividual == null ? "none" : bestIndividual.getDuration()));
-        System.out.print("Individuals: ");
-        for (BaseIntIndividual individual : population)
-            System.out.print(individual.getDuration() + " ");
-        System.out.println("\n");
+        Integer best = getBestDurationTime();
+        Double average = getAverageDurationTime();
+        Integer worst = getWorstDurationTime();
+
+        return generation + ";" + best + ";" + average + ";" + worst + ";";
+    }
+
+    private void putResultToFile()
+    {
+        try
+        {
+            PrintWriter writer = new PrintWriter(generateFileName(), "UTF-8");
+
+            results.forEach(writer::println);
+            writer.close();
+        }
+        catch (FileNotFoundException | UnsupportedEncodingException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private String generateFileName()
+    {
+        return "result"
+                + "_path_" + path.replace("src\\resources\\def_small\\", "").replace(".def", "")
+                + "_gen" + maxNumberOfGenerations
+                + "_popSize" + populationSize
+                + "_crossProb" + String.valueOf(crossoverProbability).replace(".", "-")
+                + "_mutProb" + String.valueOf(mutationProbability).replace(".", "-")
+                + "_selProb" + String.valueOf(selectionProbability).replace(".", "-")
+                + "_tSize" + tournamentSize + ".txt";
     }
 
     private void evaluate()
@@ -96,10 +134,22 @@ public class GeneticAlgorithm
         }
     }
 
-    private BaseIntIndividual getTheBestIndividual()
+    private Integer getBestDurationTime()
     {
-        Optional<BaseIntIndividual> bestIndividual = Arrays.stream(population).min(Comparator.naturalOrder());
-        return bestIndividual.isPresent() ? bestIndividual.get() : null;
+        Optional<BaseIntIndividual> bestDurationTime = Arrays.stream(population).min(Comparator.naturalOrder());
+        return bestDurationTime.isPresent() ? bestDurationTime.get().getDuration() : null;
+    }
+
+    private Integer getWorstDurationTime()
+    {
+        Optional<BaseIntIndividual> worstDurationTime = Arrays.stream(population).max(Comparator.naturalOrder());
+        return worstDurationTime.isPresent() ? worstDurationTime.get().getDuration() : null;
+    }
+
+    private Double getAverageDurationTime()
+    {
+        OptionalDouble averageDurationTime = Arrays.stream(population).mapToInt(BaseIntIndividual::getDuration).average();
+        return averageDurationTime.isPresent() ? averageDurationTime.getAsDouble() : null;
     }
 
     private void generateRandomPopulation()
