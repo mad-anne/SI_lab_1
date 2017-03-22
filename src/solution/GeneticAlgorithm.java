@@ -6,6 +6,8 @@ import msrcpsp.scheduling.*;
 import msrcpsp.scheduling.greedy.Greedy;
 import solution.crossover.BaseCrossover;
 import solution.crossover.SinglePointCrossover;
+import solution.mutation.BaseMutator;
+import solution.mutation.RandomMutator;
 import solution.selection.BaseSelector;
 import solution.selection.TournamentSelector;
 
@@ -21,59 +23,64 @@ public class GeneticAlgorithm
     private Greedy greedy;
     private BaseIntIndividual[] population;
     private int populationSize;
-    private int contestSize;
-    private double crossoverProbability;
-    private double mutationProbability;
     BaseSelector selector;
     BaseCrossover crossover;
+    BaseMutator mutator;
 
     public static void main(String[] args)
     {
         MSRCPSPIO reader = new MSRCPSPIO();
         Schedule s = reader.readDefinition("src\\resources\\def_small\\15_9_12_9.def");
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 100, 100, 5, 0.5, 0.01, new TournamentSelector(0.5, 5),
-                new SinglePointCrossover());
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 10, new TournamentSelector(0.5, 5),
+                new SinglePointCrossover(), new RandomMutator(0.01));
         ga.start();
     }
 
-    private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize, int contestSize,
-                             double crossoverProbability, double mutationProbability, BaseSelector selector,
-                             BaseCrossover crossover)
+    private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize,
+                             BaseSelector selector, BaseCrossover crossover, BaseMutator mutator)
     {
         this.schedule = schedule;
         this.maxNumberOfGenerations = maxNumberOfGenerations;
-        this.greedy = new Greedy(schedule.getSuccesors());
         this.populationSize = populationSize;
-        this.contestSize = contestSize;
-        this.crossoverProbability = crossoverProbability;
-        this.mutationProbability = mutationProbability;
         this.population = new BaseIntIndividual[populationSize];
         this.selector = selector;
         this.crossover = crossover;
+        this.mutator = mutator;
+        this.greedy = new Greedy(schedule.getSuccesors());
     }
 
     private boolean start()
     {
-        population = generateRandomPopulation();
+        generateRandomPopulation();
 
-        int currentGeneration = 1;
-        while (currentGeneration <= maxNumberOfGenerations)
+        for (int currentGeneration = 1; currentGeneration <= maxNumberOfGenerations; ++currentGeneration)
         {
-            evalute();
             selector.setPopulation(population);
-            BaseIntIndividual[] crossedIndividuals = performCrossover();
-            population = performMutation(crossedIndividuals);
-            System.out.println(currentGeneration + ". " + getTheBestIndividual().getDuration());
-            ++currentGeneration;
+            population = performCrossover();
+            performMutation();
+            evalute();
+            printResult(currentGeneration);
         }
 
         return true;
+    }
+
+    private void printResult(int number)
+    {
+        System.out.println(number + ". " + getTheBestIndividual().getDuration());
+        System.out.print("Individuals: ");
+        for (BaseIntIndividual individual : population)
+            System.out.print(individual.getDuration() + " ");
+        System.out.println("\n");
     }
 
     private void evalute()
     {
         for (BaseIndividual individual : population)
         {
+            greedy.setHasSuccessors(individual.getSchedule().getSuccesors());
+            individual.setSchedule(greedy.buildTimestamps(individual.getSchedule()));
+
             individual.setDurationAndCost();
             individual.setNormalDurationAndCost();
         }
@@ -84,14 +91,10 @@ public class GeneticAlgorithm
         return Arrays.asList(population).stream().min(Comparator.naturalOrder()).get();
     }
 
-    private BaseIntIndividual[] generateRandomPopulation()
+    private void generateRandomPopulation()
     {
-        BaseIntIndividual[] randomIndividuals = new BaseIntIndividual[populationSize];
-
         for (int i = 0; i < populationSize; ++i)
-            randomIndividuals[i] = generateRandomIndividual();
-
-        return randomIndividuals;
+            population[i] = generateRandomIndividual();
     }
 
     private BaseIntIndividual generateRandomIndividual()
@@ -144,38 +147,11 @@ public class GeneticAlgorithm
         return crossedIndividual;
     }
 
-    private BaseIntIndividual[] performMutation(BaseIntIndividual[] crossedIndividuals)
+    private BaseIntIndividual[] performMutation()
     {
-        Random r = new Random();
+        for(BaseIntIndividual individual : population)
+            mutator.mutate(individual);
 
-        for(BaseIntIndividual individual : crossedIndividuals)
-        {
-            int[] genes = individual.getGenes();
-
-            for (int index = 0; index < genes.length; ++index)
-            {
-                if (r.nextDouble() <= mutationProbability)
-                {
-                    genes[index] = mutate(individual, index);
-                    individual.setGenes(genes);
-                }
-            }
-
-            Greedy g = new Greedy(individual.getSchedule().getSuccesors());
-            individual.setSchedule(g.buildTimestamps(individual.getSchedule()));
-            individual.setDurationAndCost();
-        }
-
-        return crossedIndividuals;
-    }
-
-    private int mutate(BaseIntIndividual individual, int index)
-    {
-        Schedule s = individual.getSchedule();
-        Task t = s.getTasks()[index];
-        List<Resource> resources = s.getCapableResources(t);
-        int afterMutationValue = (new Random()).nextInt(resources.size());
-        s.assign(t, resources.get(afterMutationValue));
-        return resources.get(afterMutationValue).getId();
+        return population;
     }
 }
