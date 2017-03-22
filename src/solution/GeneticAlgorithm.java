@@ -23,9 +23,11 @@ public class GeneticAlgorithm
     private Greedy greedy;
     private BaseIntIndividual[] population;
     private int populationSize;
+    private double crossoverProbability;
     private BaseSelector selector;
     private BaseCrossover crossover;
     private BaseMutator mutator;
+    private Random random;
 
     public static void main(String[] args)
     {
@@ -36,21 +38,24 @@ public class GeneticAlgorithm
         BaseCrossover crossover = new SinglePointCrossover();
         BaseMutator mutator = new RandomMutator(0.01);
 
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 8, selector, crossover, mutator);
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 8, 0.75, selector, crossover, mutator);
         ga.start();
     }
 
     private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize,
-                             BaseSelector selector, BaseCrossover crossover, BaseMutator mutator)
+                             double crossoverProbability, BaseSelector selector, BaseCrossover crossover,
+                             BaseMutator mutator)
     {
         this.schedule = schedule;
         this.maxNumberOfGenerations = maxNumberOfGenerations;
         this.populationSize = populationSize;
         this.population = new BaseIntIndividual[populationSize];
+        this.crossoverProbability = crossoverProbability;
         this.selector = selector;
         this.crossover = crossover;
         this.mutator = mutator;
         this.greedy = new Greedy(schedule.getSuccesors());
+        this.random = new Random();
     }
 
     private boolean start()
@@ -124,6 +129,7 @@ public class GeneticAlgorithm
 
         BaseIntIndividual individual = new BaseIntIndividual(s, genes, new DurationEvaluator(s));
         individual.setDurationAndCost();
+        individual.setNormalDurationAndCost();
 
         return individual;
     }
@@ -145,9 +151,14 @@ public class GeneticAlgorithm
         while (crossedIndividual == null)
         {
             BaseIntIndividual individual1 = (BaseIntIndividual) selector.selectIndividual();
-            BaseIntIndividual individual2 = (BaseIntIndividual) selector.selectIndividual();
 
-            crossedIndividual = crossover.crossIndividuals(individual1, individual2);
+            if (random.nextDouble() < crossoverProbability)
+            {
+                BaseIntIndividual individual2 = (BaseIntIndividual) selector.selectIndividual();
+                crossedIndividual = crossover.crossIndividuals(individual1, individual2);
+            }
+            else
+                crossedIndividual = individual1;
         }
 
         return crossedIndividual;
