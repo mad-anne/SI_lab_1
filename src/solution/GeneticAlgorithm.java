@@ -4,6 +4,8 @@ import msrcpsp.evaluation.DurationEvaluator;
 import msrcpsp.io.MSRCPSPIO;
 import msrcpsp.scheduling.*;
 import msrcpsp.scheduling.greedy.Greedy;
+import solution.crossover.BaseCrossover;
+import solution.crossover.SinglePointCrossover;
 import solution.selection.BaseSelector;
 import solution.selection.TournamentSelector;
 
@@ -23,17 +25,20 @@ public class GeneticAlgorithm
     private double crossoverProbability;
     private double mutationProbability;
     BaseSelector selector;
+    BaseCrossover crossover;
 
     public static void main(String[] args)
     {
         MSRCPSPIO reader = new MSRCPSPIO();
         Schedule s = reader.readDefinition("src\\resources\\def_small\\15_9_12_9.def");
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 100, 100, 5, 0.5, 0.01, new TournamentSelector(0.5, 5));
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, 100, 100, 5, 0.5, 0.01, new TournamentSelector(0.5, 5),
+                new SinglePointCrossover());
         ga.start();
     }
 
     private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize, int contestSize,
-                             double crossoverProbability, double mutationProbability, BaseSelector selector)
+                             double crossoverProbability, double mutationProbability, BaseSelector selector,
+                             BaseCrossover crossover)
     {
         this.schedule = schedule;
         this.maxNumberOfGenerations = maxNumberOfGenerations;
@@ -44,6 +49,7 @@ public class GeneticAlgorithm
         this.mutationProbability = mutationProbability;
         this.population = new BaseIntIndividual[populationSize];
         this.selector = selector;
+        this.crossover = crossover;
     }
 
     private boolean start()
@@ -116,62 +122,26 @@ public class GeneticAlgorithm
     private BaseIntIndividual[] performCrossover()
     {
         BaseIntIndividual[] crossedIndividuals = new BaseIntIndividual[populationSize];
-        Random r = new Random();
 
-        int index = 0;
-        while (index < populationSize)
-        {
-            BaseIndividual individual1 = selector.selectIndividual();
-            BaseIndividual individual2 = selector.selectIndividual();
-
-            if (r.nextDouble() <= crossoverProbability)
-            {
-                crossedIndividuals[index] = crossIndividuals(individual1, individual2);
-                ++index;
-            }
-        }
+        for (int index = 0; index < populationSize; ++index)
+            crossedIndividuals[index] = getCrossedIndividual();
 
         return crossedIndividuals;
     }
 
-    private BaseIntIndividual crossIndividuals(BaseIndividual individual1, BaseIndividual individual2)
+    private BaseIntIndividual getCrossedIndividual()
     {
-        int[] genes1 = ((BaseIntIndividual) individual1).getGenes();
-        int[] genes2 = ((BaseIntIndividual) individual2).getGenes();
+        BaseIntIndividual crossedIndividual = null;
 
-        Random r = new Random();
-        int slicePoint = r.nextInt(genes1.length - 1);
-
-        int[] firstSlice;
-        int[] secondSlice;
-
-        if (r.nextDouble() < 0.5)
+        while (crossedIndividual == null)
         {
-            firstSlice = Arrays.copyOfRange(genes1, 0, slicePoint);
-            secondSlice = Arrays.copyOfRange(genes2, slicePoint, genes1.length);
+            BaseIntIndividual individual1 = (BaseIntIndividual) selector.selectIndividual();
+            BaseIntIndividual individual2 = (BaseIntIndividual) selector.selectIndividual();
+
+            crossedIndividual = crossover.crossIndividuals(individual1, individual2);
         }
-        else
-        {
-            firstSlice = Arrays.copyOfRange(genes2, slicePoint, genes1.length);
-            secondSlice = Arrays.copyOfRange(genes1, 0, slicePoint);
-        }
-        int[] crossedGenes = new int[genes1.length];
-        System.arraycopy(firstSlice, 0, crossedGenes, 0, firstSlice.length);
-        System.arraycopy(secondSlice, 0, crossedGenes, firstSlice.length, secondSlice.length);
 
-        Schedule s = new Schedule(schedule);
-
-        Task[] tasks = s.getTasks();
-        for(int index = 0; index < tasks.length; ++index)
-            s.assign(tasks[index], s.getResource(crossedGenes[index]));
-
-        Greedy tempGreedy = new Greedy(s.getSuccesors());
-        tempGreedy.buildTimestamps(s);
-
-        BaseIntIndividual individual = new BaseIntIndividual(s, crossedGenes, new DurationEvaluator(s));
-        individual.setDurationAndCost();
-
-        return individual;
+        return crossedIndividual;
     }
 
     private BaseIntIndividual[] performMutation(BaseIntIndividual[] crossedIndividuals)
