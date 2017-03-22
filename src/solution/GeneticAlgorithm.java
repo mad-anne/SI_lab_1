@@ -4,6 +4,8 @@ import msrcpsp.evaluation.DurationEvaluator;
 import msrcpsp.io.MSRCPSPIO;
 import msrcpsp.scheduling.*;
 import msrcpsp.scheduling.greedy.Greedy;
+import solution.selection.BaseSelector;
+import solution.selection.TournamentSelector;
 
 import java.util.*;
 
@@ -20,17 +22,18 @@ public class GeneticAlgorithm
     private int contestSize;
     private double crossoverProbability;
     private double mutationProbability;
+    BaseSelector selector;
 
     public static void main(String[] args)
     {
         MSRCPSPIO reader = new MSRCPSPIO();
         Schedule s = reader.readDefinition("src\\resources\\def_small\\15_9_12_9.def");
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 1000, 100, 5, 0.5, 0.01);
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, 100, 100, 5, 0.5, 0.01, new TournamentSelector(0.5, 5));
         ga.start();
     }
 
     private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize, int contestSize,
-                             double crossoverProbability, double mutationProbability)
+                             double crossoverProbability, double mutationProbability, BaseSelector selector)
     {
         this.schedule = schedule;
         this.maxNumberOfGenerations = maxNumberOfGenerations;
@@ -40,6 +43,7 @@ public class GeneticAlgorithm
         this.crossoverProbability = crossoverProbability;
         this.mutationProbability = mutationProbability;
         this.population = new BaseIntIndividual[populationSize];
+        this.selector = selector;
     }
 
     private boolean start()
@@ -49,14 +53,24 @@ public class GeneticAlgorithm
         int currentGeneration = 1;
         while (currentGeneration <= maxNumberOfGenerations)
         {
-            BaseIntIndividual[] selectedIndividuals = selectIndividuals(population);
-            BaseIntIndividual[] crossedIndividuals = performCrossover(selectedIndividuals);
+            evalute();
+            selector.setPopulation(population);
+            BaseIntIndividual[] crossedIndividuals = performCrossover();
             population = performMutation(crossedIndividuals);
             System.out.println(currentGeneration + ". " + getTheBestIndividual().getDuration());
             ++currentGeneration;
         }
 
         return true;
+    }
+
+    private void evalute()
+    {
+        for (BaseIndividual individual : population)
+        {
+            individual.setDurationAndCost();
+            individual.setNormalDurationAndCost();
+        }
     }
 
     private BaseIntIndividual getTheBestIndividual()
@@ -99,46 +113,7 @@ public class GeneticAlgorithm
         return individual;
     }
 
-    private BaseIntIndividual[] selectIndividuals(BaseIntIndividual[] population)
-    {
-        BaseIntIndividual[] selectedIndividuals = new BaseIntIndividual[populationSize];
-        Random r = new Random();
-        Set<Integer> drawnIndexes = new HashSet<>();
-
-        int index = 0;
-        while (index < populationSize)
-        {
-            drawnIndexes.clear();
-
-            while (drawnIndexes.size() < contestSize)
-                drawnIndexes.add(r.nextInt(populationSize));
-
-            selectedIndividuals[index] = getTheBestIndividual(population, drawnIndexes);
-            ++index;
-        }
-
-        return selectedIndividuals;
-    }
-
-    private BaseIntIndividual getTheBestIndividual(BaseIntIndividual[] population, Set<Integer> drawnIndexes)
-    {
-        ArrayList<Integer> drawnIndexesList = new ArrayList<>(drawnIndexes);
-        BaseIntIndividual bestIndividual = population[drawnIndexesList.get(0)];
-        int bestDurationTime = population[drawnIndexesList.get(0)].getDuration();
-
-        for (int index = 1; index < drawnIndexes.size(); ++index)
-        {
-            if (population[drawnIndexesList.get(index)].getDuration() < bestDurationTime)
-            {
-                bestIndividual = population[drawnIndexesList.get(index)];
-                bestDurationTime = population[drawnIndexesList.get(index)].getDuration();
-            }
-        }
-
-        return bestIndividual;
-    }
-
-    private BaseIntIndividual[] performCrossover(BaseIntIndividual[] selectedIndividuals)
+    private BaseIntIndividual[] performCrossover()
     {
         BaseIntIndividual[] crossedIndividuals = new BaseIntIndividual[populationSize];
         Random r = new Random();
@@ -146,8 +121,8 @@ public class GeneticAlgorithm
         int index = 0;
         while (index < populationSize)
         {
-            BaseIntIndividual individual1 = selectedIndividuals[r.nextInt(populationSize)];
-            BaseIntIndividual individual2 = selectedIndividuals[r.nextInt(populationSize)];
+            BaseIndividual individual1 = selector.selectIndividual();
+            BaseIndividual individual2 = selector.selectIndividual();
 
             if (r.nextDouble() <= crossoverProbability)
             {
@@ -159,10 +134,10 @@ public class GeneticAlgorithm
         return crossedIndividuals;
     }
 
-    private BaseIntIndividual crossIndividuals(BaseIntIndividual individual1, BaseIntIndividual individual2)
+    private BaseIntIndividual crossIndividuals(BaseIndividual individual1, BaseIndividual individual2)
     {
-        int[] genes1 = individual1.getGenes();
-        int[] genes2 = individual2.getGenes();
+        int[] genes1 = ((BaseIntIndividual) individual1).getGenes();
+        int[] genes2 = ((BaseIntIndividual) individual2).getGenes();
 
         Random r = new Random();
         int slicePoint = r.nextInt(genes1.length - 1);
