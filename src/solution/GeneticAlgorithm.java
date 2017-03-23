@@ -21,11 +21,14 @@ import java.util.*;
  */
 public class GeneticAlgorithm
 {
-    private static String path = "src\\resources\\def_small\\15_9_12_9.def";
+    private static String path = "src\\resources\\dataset_def\\200_20_55_9.def";
 
+    private static int sPopulationSize = 100;
+    private static int sGenerations = 100;
+    private static double sCrossoverProbability = 0.5;
     private static double mutationProbability = 0.01;
-    private static double selectionProbability = 0.05;
-    private static int tournamentSize = 5;
+    private static double selectionProbability = 1;
+    private static int tournamentSize = 10;
 
     private int maxNumberOfGenerations = 0;
     private Schedule schedule;
@@ -39,6 +42,7 @@ public class GeneticAlgorithm
     private Random random;
 
     private ArrayList<String> results = new ArrayList<>();
+    private ArrayList<String> JSONresults = new ArrayList<>();
 
     public static void main(String[] args)
     {
@@ -49,7 +53,8 @@ public class GeneticAlgorithm
         BaseCrossover crossover = new SinglePointCrossover();
         BaseMutator mutator = new RandomMutator(mutationProbability);
 
-        GeneticAlgorithm ga = new GeneticAlgorithm(s, 30, 8, 0.75, selector, crossover, mutator);
+        GeneticAlgorithm ga = new GeneticAlgorithm(s, sGenerations, sPopulationSize, sCrossoverProbability,
+                selector, crossover, mutator);
         ga.start();
     }
 
@@ -75,15 +80,54 @@ public class GeneticAlgorithm
 
         for (int currentGeneration = 1; currentGeneration <= maxNumberOfGenerations; ++currentGeneration)
         {
+            System.out.println("GENERATE " + currentGeneration + " OF " + maxNumberOfGenerations);
             selector.setPopulation(population);
             population = performCrossover();
             population = performMutation();
             evaluate();
             results.add(getCurrentState(currentGeneration));
+            modifyJSONresults();
         }
 
+        putResultToJSONFile();
         putResultToFile();
         return true;
+    }
+
+    private void modifyJSONresults()
+    {
+        if (JSONresults.size() == 0)
+        {
+            JSONresults.add("series: [{");
+            JSONresults.add("name: 'Best Individual',");
+            JSONresults.add("data: [" + getBestDurationTime() + "]");
+            JSONresults.add(" }, {");
+            JSONresults.add("name: 'Average Individual',");
+            JSONresults.add("data: [" + getAverageDurationTime() + "]");
+            JSONresults.add(" }, {");
+            JSONresults.add("name: 'Worst Individual',");
+            JSONresults.add("data: [" + getWorstDurationTime() + "]");
+            JSONresults.add(" }]");
+        }
+
+        JSONresults.set(2, JSONresults.get(2).replace("]", ", " + getBestDurationTime() + "]"));
+        JSONresults.set(5, JSONresults.get(5).replace("]", ", " + getAverageDurationTime() + "]"));
+        JSONresults.set(8, JSONresults.get(8).replace("]", ", " + getWorstDurationTime() + "]"));
+    }
+
+    private void putResultToJSONFile()
+    {
+        try
+        {
+            PrintWriter writer = new PrintWriter("JSON" + generateFileName(), "UTF-8");
+
+            JSONresults.forEach(writer::println);
+            writer.close();
+        }
+        catch (FileNotFoundException | UnsupportedEncodingException e)
+        {
+            e.printStackTrace();
+        }
     }
 
     private String getCurrentState(int generation)
@@ -113,10 +157,12 @@ public class GeneticAlgorithm
     private String generateFileName()
     {
         return "result"
-                + "_path_" + path.replace("src\\resources\\def_small\\", "").replace(".def", "")
-                + "_gen" + maxNumberOfGenerations
-                + "_popSize" + populationSize
-                + "_crossProb" + String.valueOf(crossoverProbability).replace(".", "-")
+                + "_path_" + path
+                .replace("src\\resources\\def_small\\", "").replace(".def", "")
+                .replace("src\\resources\\dataset_def\\", "").replace(".def", "")
+                + "_gen" + sGenerations
+                + "_popSize" + sPopulationSize
+                + "_crossProb" + String.valueOf(sCrossoverProbability).replace(".", "-")
                 + "_mutProb" + String.valueOf(mutationProbability).replace(".", "-")
                 + "_selProb" + String.valueOf(selectionProbability).replace(".", "-")
                 + "_tSize" + tournamentSize + ".txt";
