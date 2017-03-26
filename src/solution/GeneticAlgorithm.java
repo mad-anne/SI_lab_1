@@ -43,6 +43,7 @@ public class GeneticAlgorithm
 
     private ArrayList<String> results = new ArrayList<>();
     private ArrayList<String> JSONresults = new ArrayList<>();
+    private ArrayList<String> JSONdata = new ArrayList<>();
 
     public static void main(String[] args)
     {
@@ -80,13 +81,13 @@ public class GeneticAlgorithm
 
         for (int currentGeneration = 1; currentGeneration <= maxNumberOfGenerations; ++currentGeneration)
         {
-            System.out.println("GENERATE " + currentGeneration + " OF " + maxNumberOfGenerations);
-            selector.setPopulation(population);
-            population = performCrossover();
-            population = performMutation();
             evaluate();
             results.add(getCurrentState(currentGeneration));
             modifyJSONresults();
+            System.out.println("GENERATION " + currentGeneration + " OF " + maxNumberOfGenerations);
+            selector.setPopulation(population);
+            population = performCrossover();
+            population = performMutation();
         }
 
         putResultToJSONFile();
@@ -94,18 +95,61 @@ public class GeneticAlgorithm
         return true;
     }
 
+    private void prepareJSONdata()
+    {
+        JSONdata.add("Highcharts.chart('container', {\n" +
+                "\n" +
+                "    title: {\n" +
+                "        text: 'Genetic Algorithm on " +
+                path.replace("src\\resources\\def_small\\", "")
+                    .replace("src\\resources\\dataset_def\\", "")
+                + " dataset'\n" +
+                "    },");
+        JSONdata.add("    subtitle: {\n" +
+                "        text: 'parameters: N = " + populationSize +
+                ", G = " + maxNumberOfGenerations +
+                ", T = " + tournamentSize +
+                ", pm =" + mutationProbability +
+                ", ps = " + selectionProbability +
+                ", pc = " + crossoverProbability +" '\n" +
+                "    },");
+
+        JSONdata.add("yAxis: {\n" +
+                "        title: {\n" +
+                "            text: 'Duration Time'\n" +
+                "        }\n" +
+                "    },");
+
+        JSONdata.add("xAxis: {\n" +
+                "        title: {\n" +
+                "            text: 'Generation'\n" +
+                "        }\n" +
+                "    },");
+
+        JSONdata.add("legend: {\n" +
+                "        layout: 'vertical',\n" +
+                "        align: 'right',\n" +
+                "        verticalAlign: 'middle'\n" +
+                "    }," +
+                "    plotOptions: {\n" +
+                        "        series: {\n" +
+                        "            pointStart: 0\n" +
+                        "        }\n" +
+                        "    },");
+    }
+
     private void modifyJSONresults()
     {
         if (JSONresults.size() == 0)
         {
             JSONresults.add("series: [{");
-            JSONresults.add("name: 'Best Individual',");
+            JSONresults.add("name: 'Best',");
             JSONresults.add("data: [" + getBestDurationTime() + "]");
             JSONresults.add(" }, {");
-            JSONresults.add("name: 'Average Individual',");
+            JSONresults.add("name: 'Average',");
             JSONresults.add("data: [" + getAverageDurationTime() + "]");
             JSONresults.add(" }, {");
-            JSONresults.add("name: 'Worst Individual',");
+            JSONresults.add("name: 'Worst',");
             JSONresults.add("data: [" + getWorstDurationTime() + "]");
             JSONresults.add(" }]");
         }
@@ -121,7 +165,10 @@ public class GeneticAlgorithm
         {
             PrintWriter writer = new PrintWriter("JSON" + generateFileName(), "UTF-8");
 
+            prepareJSONdata();
+            JSONdata.forEach(writer::println);
             JSONresults.forEach(writer::println);
+            writer.println("});");
             writer.close();
         }
         catch (FileNotFoundException | UnsupportedEncodingException e)
