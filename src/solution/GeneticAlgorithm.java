@@ -21,15 +21,31 @@ import java.util.*;
  */
 public class GeneticAlgorithm
 {
-    private static String path = "src\\resources\\dataset_def\\200_20_55_9.def";
+//    private static String path1 = "src\\resources\\dataset_def\\200_20_145_15.def";
+    private static String path1 = "src\\resources\\def_small\\10_3_5_3.def";
+    private static String path2 = "src\\resources\\def_small\\10_5_8_5.def";
+    private static String path3 = "src\\resources\\def_small\\10_7_10_7.def";
+    private static String path4 = "src\\resources\\def_small\\15_3_5_3.def";
+    private static String path5 = "src\\resources\\def_small\\15_6_10_6.def";
+    private static String path6 = "src\\resources\\def_small\\15_9_12_9.def";
 
-    private static int sPopulationSize = 100;
+//    private static int sPopulationSize = 100;
+//    private static int sGenerations = 100;
+//    private static double sCrossoverProbability = 0.5;
+//    private static double selectionProbability = 0.75;
+//    private static double mutationProbability = 0.01;
+//    private static int tournamentSize = 10;
+//    private static int numberOfRuns = 15;
+
+    private static int sPopulationSize = 50;
     private static int sGenerations = 100;
-    private static double sCrossoverProbability = 0.5;
-    private static double mutationProbability = 0.01;
+    private static double sCrossoverProbability = 0.1;
     private static double selectionProbability = 1;
+    private static double mutationProbability = 0.01;
     private static int tournamentSize = 10;
+    private static int numberOfRuns = 15;
 
+    private String path;
     private int maxNumberOfGenerations = 0;
     private Schedule schedule;
     private Greedy greedy;
@@ -40,28 +56,58 @@ public class GeneticAlgorithm
     private BaseCrossover crossover;
     private BaseMutator mutator;
     private Random random;
+    private int currentRun;
 
     private ArrayList<String> results = new ArrayList<>();
     private ArrayList<String> JSONresults = new ArrayList<>();
     private ArrayList<String> JSONdata = new ArrayList<>();
 
+    private ArrayList<Double> bests = new ArrayList<>();
+    private ArrayList<Double> average = new ArrayList<>();
+    private ArrayList<Double> worsts = new ArrayList<>();
+
     public static void main(String[] args)
     {
         MSRCPSPIO reader = new MSRCPSPIO();
-        Schedule s = reader.readDefinition(path);
 
         BaseSelector selector = new TournamentSelector(selectionProbability, tournamentSize);
         BaseCrossover crossover = new SinglePointCrossover();
         BaseMutator mutator = new RandomMutator(mutationProbability);
 
+        Schedule s = reader.readDefinition(path1);
         GeneticAlgorithm ga = new GeneticAlgorithm(s, sGenerations, sPopulationSize, sCrossoverProbability,
-                selector, crossover, mutator);
+                selector, crossover, mutator, path1);
         ga.start();
+
+        Schedule s2 = reader.readDefinition(path2);
+        GeneticAlgorithm ga2 = new GeneticAlgorithm(s2, sGenerations, sPopulationSize, sCrossoverProbability,
+                selector, crossover, mutator, path2);
+        ga2.start();
+
+        Schedule s3 = reader.readDefinition(path3);
+        GeneticAlgorithm ga3 = new GeneticAlgorithm(s3, sGenerations, sPopulationSize, sCrossoverProbability,
+                selector, crossover, mutator, path3);
+        ga3.start();
+
+        Schedule s4 = reader.readDefinition(path4);
+        GeneticAlgorithm ga4 = new GeneticAlgorithm(s4, sGenerations, sPopulationSize, sCrossoverProbability,
+                selector, crossover, mutator, path4);
+        ga4.start();
+
+        Schedule s5 = reader.readDefinition(path5);
+        GeneticAlgorithm ga5 = new GeneticAlgorithm(s5, sGenerations, sPopulationSize, sCrossoverProbability,
+                selector, crossover, mutator, path5);
+        ga5.start();
+
+        Schedule s6 = reader.readDefinition(path6);
+        GeneticAlgorithm ga6 = new GeneticAlgorithm(s6, sGenerations, sPopulationSize, sCrossoverProbability,
+                selector, crossover, mutator, path6);
+        ga6.start();
     }
 
     private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize,
                              double crossoverProbability, BaseSelector selector, BaseCrossover crossover,
-                             BaseMutator mutator)
+                             BaseMutator mutator, String path)
     {
         this.schedule = schedule;
         this.maxNumberOfGenerations = maxNumberOfGenerations;
@@ -73,26 +119,51 @@ public class GeneticAlgorithm
         this.mutator = mutator;
         this.greedy = new Greedy(schedule.getSuccesors());
         this.random = new Random();
+        this.path = path;
     }
 
     private boolean start()
     {
         generateRandomPopulation();
 
-        for (int currentGeneration = 1; currentGeneration <= maxNumberOfGenerations; ++currentGeneration)
+        currentRun = 1;
+        while (currentRun <= numberOfRuns)
         {
-            evaluate();
-            results.add(getCurrentState(currentGeneration));
-            modifyJSONresults();
-            System.out.println("GENERATION " + currentGeneration + " OF " + maxNumberOfGenerations);
-            selector.setPopulation(population);
-            population = performCrossover();
-            population = performMutation();
+            for (int currentGeneration = 1; currentGeneration <= maxNumberOfGenerations; ++currentGeneration)
+            {
+                evaluate();
+                results.add(getCurrentState(currentGeneration));
+                modifyResults(currentGeneration);
+                System.out.println("GENERATION " + currentGeneration + " OF " + maxNumberOfGenerations +
+                " RUN NO " + currentRun);
+                selector.setPopulation(population);
+                population = performCrossover();
+                population = performMutation();
+            }
+            ++currentRun;
         }
 
+        modifyJSONresults();
         putResultToJSONFile();
         putResultToFile();
         return true;
+    }
+
+    private void modifyResults(int currentGeneration)
+    {
+        if (currentRun == 1)
+        {
+            bests.add( (double) getBestDurationTime().intValue());
+            average.add(getAverageDurationTime());
+            worsts.add( (double) getWorstDurationTime().intValue());
+        }
+        else
+        {
+            int index = currentGeneration - 1;
+            bests.set(index, (bests.get(index) * (currentRun - 1) + getBestDurationTime() ) / currentRun );
+            average.set(index, (average.get(index) * (currentRun - 1) + getAverageDurationTime() ) / currentRun );
+            worsts.set(index, (worsts.get(index) * (currentRun - 1) + getWorstDurationTime() ) / currentRun );
+        }
     }
 
     private void prepareJSONdata()
@@ -106,17 +177,18 @@ public class GeneticAlgorithm
                 + " dataset'\n" +
                 "    },");
         JSONdata.add("    subtitle: {\n" +
+                " useHTML: true, " +
                 "        text: 'parameters: N = " + populationSize +
                 ", G = " + maxNumberOfGenerations +
                 ", T = " + tournamentSize +
-                ", pm =" + mutationProbability +
-                ", ps = " + selectionProbability +
-                ", pc = " + crossoverProbability +" '\n" +
+                ", p<sub>c</sub> = " + crossoverProbability +
+                ", p<sub>s</sub> = " + selectionProbability +
+                ", p<sub>m</sub> = " + mutationProbability + " '\n" +
                 "    },");
 
         JSONdata.add("yAxis: {\n" +
                 "        title: {\n" +
-                "            text: 'Duration Time'\n" +
+                "            text: 'Schedule Duration of the Individual'\n" +
                 "        }\n" +
                 "    },");
 
@@ -140,23 +212,23 @@ public class GeneticAlgorithm
 
     private void modifyJSONresults()
     {
-        if (JSONresults.size() == 0)
-        {
-            JSONresults.add("series: [{");
-            JSONresults.add("name: 'Best',");
-            JSONresults.add("data: [" + getBestDurationTime() + "]");
-            JSONresults.add(" }, {");
-            JSONresults.add("name: 'Average',");
-            JSONresults.add("data: [" + getAverageDurationTime() + "]");
-            JSONresults.add(" }, {");
-            JSONresults.add("name: 'Worst',");
-            JSONresults.add("data: [" + getWorstDurationTime() + "]");
-            JSONresults.add(" }]");
-        }
+        JSONresults.add("series: [{");
+        JSONresults.add("name: 'Best',");
+        JSONresults.add("data: [" + + bests.get(0) + "]");
+        JSONresults.add(" }, {");
+        JSONresults.add("name: 'Average',");
+        JSONresults.add("data: [" + average.get(0) + "]");
+        JSONresults.add(" }, {");
+        JSONresults.add("name: 'Worst',");
+        JSONresults.add("data: [" + worsts.get(0) + "]");
+        JSONresults.add(" }]");
 
-        JSONresults.set(2, JSONresults.get(2).replace("]", ", " + getBestDurationTime() + "]"));
-        JSONresults.set(5, JSONresults.get(5).replace("]", ", " + getAverageDurationTime() + "]"));
-        JSONresults.set(8, JSONresults.get(8).replace("]", ", " + getWorstDurationTime() + "]"));
+        for (int index = 1; index < bests.size(); ++index)
+        {
+            JSONresults.set(2, JSONresults.get(2).replace("]", ", " + bests.get(index) + "]"));
+            JSONresults.set(5, JSONresults.get(5).replace("]", ", " + average.get(index) + "]"));
+            JSONresults.set(8, JSONresults.get(8).replace("]", ", " + worsts.get(index) + "]"));
+        }
     }
 
     private void putResultToJSONFile()
