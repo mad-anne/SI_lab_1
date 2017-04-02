@@ -76,20 +76,20 @@ public class GeneticAlgorithm
         System.out.println("TOOK " + timeGA);
         System.out.println("EVALUATIONS " + ga.getGAEvaluation());
 
-        Schedule s2 = reader.readDefinition(path1);
-        GeneticAlgorithm ga2 = new GeneticAlgorithm(s2, sGenerations, sPopulationSize, sCrossoverProbability,
-                selector2, crossover, mutator, path1);
-        ga2.start();
-
-        long startRand = System.currentTimeMillis();
-        int maxDrawns = 100;
-        Schedule best = ga.getBestRandomIndividual(maxDrawns);
-        best.setEvaluator(new DurationEvaluator(best));
-        best.evaluate();
-        long timeRand = System.currentTimeMillis() - startRand;
-        System.out.println("BEST DURATION: " + best.getEvaluator().getDuration() + " FROM " + maxDrawns + " DRAWNS");
-        System.out.println("TOOK " + timeRand);
-        System.out.println("EVALUATIONS " + ga.getRandomEvaluation());
+//        Schedule s2 = reader.readDefinition(path1);
+//        GeneticAlgorithm ga2 = new GeneticAlgorithm(s2, sGenerations, sPopulationSize, sCrossoverProbability,
+//                selector2, crossover, mutator, path1);
+//        ga2.start();
+//
+//        long startRand = System.currentTimeMillis();
+//        int maxDrawns = 100;
+//        Schedule best = ga.getBestRandomIndividual(maxDrawns);
+//        best.setEvaluator(new DurationEvaluator(best));
+//        best.evaluate();
+//        long timeRand = System.currentTimeMillis() - startRand;
+//        System.out.println("BEST DURATION: " + best.getEvaluator().getDuration() + " FROM " + maxDrawns + " DRAWNS");
+//        System.out.println("TOOK " + timeRand);
+//        System.out.println("EVALUATIONS " + ga.getRandomEvaluation());
     }
 
     private GeneticAlgorithm(Schedule schedule, int maxNumberOfGenerations, int populationSize,
@@ -111,12 +111,12 @@ public class GeneticAlgorithm
 
     private boolean start()
     {
-        generateRandomPopulation();
-
         GAEvaluation = 0;
         currentRun = 1;
         while (currentRun <= numberOfRuns)
         {
+            generateRandomPopulation();
+
             System.out.println("RUN NO " + currentRun);
             for (int currentGeneration = 1; currentGeneration <= maxNumberOfGenerations; ++currentGeneration)
             {
